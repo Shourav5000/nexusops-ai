@@ -11,32 +11,25 @@ from pydantic import BaseModel
 from typing import Optional, Union, List, Dict, Any
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from psycopg_pool import AsyncConnectionPool
 from app.agents.graph import build_workflow
 
 DB_URI = os.getenv("DATABASE_URL", "postgresql://postgres:securepassword123@db:5432/nexusops")
 
 workflow_app = None
-db_pool = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global workflow_app, db_pool
-    db_pool = AsyncConnectionPool(conninfo=DB_URI, max_size=20, open=False)
-    await db_pool.open()
-    
-    checkpointer = AsyncPostgresSaver(db_pool)
-    await checkpointer.setup()
-    
-    raw_workflow = build_workflow()
-    workflow_app = raw_workflow.compile(
-        checkpointer=checkpointer,
-        interrupt_before=["apply_fix"]
-    )
-    
-    yield
-    
-    await db_pool.close()
+    global workflow_app
+    async with AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer:
+        await checkpointer.setup()
+        
+        raw_workflow = build_workflow()
+        workflow_app = raw_workflow.compile(
+            checkpointer=checkpointer,
+            interrupt_before=["apply_fix"]
+        )
+        
+        yield
 
 app = FastAPI(title="NexusOps AI API", version="1.0.0", lifespan=lifespan)
 
