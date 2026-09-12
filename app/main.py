@@ -1,3 +1,4 @@
+# app/main.py
 import os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
@@ -15,34 +16,30 @@ from app.agents.graph import build_workflow
 
 DB_URI = os.getenv("DATABASE_URL", "postgresql://postgres:securepassword123@db:5432/nexusops")
 
-# Global workflow reference accessible across endpoints
 workflow_app = None
 db_pool = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global workflow_app, db_pool
-    # Initialize the asynchronous connection pool
     db_pool = AsyncConnectionPool(conninfo=DB_URI, max_size=20, open=False)
     await db_pool.open()
     
-    # Initialize and setup the checkpointer cleanly using a dedicated connection context
     checkpointer = AsyncPostgresSaver(db_pool)
-    async with db_pool.connection() as conn:
-        await checkpointer.setup(conn=conn)
+    await checkpointer.setup()
     
-    # Build workflow and compile with the persistent PostgreSQL checkpointer
     raw_workflow = build_workflow()
-    workflow_app = raw_workflow.compile(checkpointer=checkpointer)
+    workflow_app = raw_workflow.compile(
+        checkpointer=checkpointer,
+        interrupt_before=["apply_fix"]
+    )
     
     yield
     
-    # Cleanup connection pool on shutdown
     await db_pool.close()
 
 app = FastAPI(title="NexusOps AI API", version="1.0.0", lifespan=lifespan)
 
-# Mount static folder so the frontend dashboard is accessible
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")

@@ -1,9 +1,9 @@
+# app/agents/nodes.py
 from app.services.vector_store import search_runbooks
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 import os
 
-# Removed deprecated temperature parameter for the model
 llm = ChatAnthropic(
     model="claude-sonnet-5",
     max_tokens=4096,
@@ -20,7 +20,7 @@ def _extract_query_text(content) -> str:
     return str(content)
 
 def _format_content_for_anthropic(content):
-    """Ensures base64 image data URLs are properly formatted for Claude's vision API and wrapped in a HumanMessage."""
+    """Ensures base64 image data URLs are properly formatted for Claude's vision API."""
     if isinstance(content, list):
         formatted_content = []
         for part in content:
@@ -46,24 +46,41 @@ def _format_content_for_anthropic(content):
                     formatted_content.append(part)
             else:
                 formatted_content.append(part)
-        return [HumanMessage(content=formatted_content)]
+        return formatted_content
     return content
 
+def _get_latest_message_content(state):
+    """Safely extracts message content whether stored as dict or LangChain message object."""
+    messages = state.get("messages", [])
+    if not messages:
+        return ""
+    last_msg = messages[-1]
+    if hasattr(last_msg, "content"):
+        return last_msg.content
+    elif isinstance(last_msg, dict):
+        return last_msg.get("content", "")
+    return str(last_msg)
+
 def router_node(state):
-    raw_content = state["messages"][-1]["content"]
+    raw_content = _get_latest_message_content(state)
     latest_message = _extract_query_text(raw_content).lower()
     
-    if "error" in latest_message or "fail" in latest_message or "crash" in latest_message or "bug" in latest_message or "code" in latest_message:
+    if any(keyword in latest_message for keyword in ["error", "fail", "crash", "bug", "code", "issue"]):
         return {"current_task": "diagnostics_agent"}
     return {"current_task": "rag_agent"}
 
 def rag_agent_node(state):
-    raw_content = state["messages"][-1]["content"]
+    raw_content = _get_latest_message_content(state)
     query = _extract_query_text(raw_content)
     retrieved_docs = search_runbooks(query, k=3)
     
-    anthropic_payload = _format_content_for_anthropic(raw_content)
-    response = llm.invoke(anthropic_payload)
+    context_str = "\n\n".join([doc for doc in retrieved_docs]) if retrieved_docs else "No specific runbooks found."
+    system_prompt = SystemMessage(content=f"You are NexusOps RAG Agent. Use the following internal runbooks to answer the user query accurately:\n\n{context_str}")
+    
+    formatted_payload = _format_content_for_anthropic(raw_content)
+    human_msg = HumanMessage(content=formatted_payload)
+    
+    response = llm.invoke([system_prompt, human_msg])
     
     return {
         "retrieved_docs": retrieved_docs,
@@ -71,12 +88,17 @@ def rag_agent_node(state):
     }
 
 def diagnostics_agent_node(state):
-    raw_content = state["messages"][-1]["content"]
+    raw_content = _get_latest_message_content(state)
     query = _extract_query_text(raw_content)
     docs = state.get("retrieved_docs") or search_runbooks(query, k=3)
     
-    anthropic_payload = _format_content_for_anthropic(raw_content)
-    response = llm.invoke(anthropic_payload)
+    context_str = "\n\n".join([doc for doc in docs]) if docs else "No specific diagnostic runbooks found."
+    system_prompt = SystemMessage(content=f"You are NexusOps Diagnostics Agent. Analyze the error log or issue using these internal references:\n\n{context_str}")
+    
+    formatted_payload = _format_content_for_anthropic(raw_content)
+    human_msg = HumanMessage(content=formatted_payload)
+    
+    response = llm.invoke([system_prompt, human_msg])
     report = response.content
     
     return {

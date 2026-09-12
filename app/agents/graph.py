@@ -1,8 +1,12 @@
+# app/agents/graph.py
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 from app.agents.state import AgentState
-from app.agents.nodes import router_node, rag_agent_node, diagnostics_agent_node, apply_fix_node
-
+from app.agents.nodes import (
+    router_node,
+    rag_agent_node,
+    diagnostics_agent_node,
+    apply_fix_node
+)
 
 def build_workflow():
     workflow = StateGraph(AgentState)
@@ -27,8 +31,5 @@ def build_workflow():
     workflow.add_edge("diagnostics_agent", "apply_fix")
     workflow.add_edge("apply_fix", END)
 
-    memory = MemorySaver()
-    return workflow.compile(
-        checkpointer=memory,
-        interrupt_before=["apply_fix"],
-    )
+    # Return uncompiled graph so main.py can manage the PostgreSQL checkpointer & interrupts
+    return workflow
