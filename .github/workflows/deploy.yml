@@ -21,5 +21,13 @@ jobs:
             cd nexusops-ai
             git pull origin main
             echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" > .env
-            docker-compose down
-            docker-compose up --build -d
+            
+            # Ensure local user-space docker-compose plugin exists
+            mkdir -p ~/.docker/cli-plugins
+            if [ ! -f ~/.docker/cli-plugins/docker-compose ]; then
+              curl -SL https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-x86_64 -o ~/.docker/cli-plugins/docker-compose
+              chmod +x ~/.docker/cli-plugins/docker-compose
+            fi
+            
+            docker compose down
+            docker compose up --build -d
