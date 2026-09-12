@@ -26,9 +26,10 @@ async def lifespan(app: FastAPI):
     db_pool = AsyncConnectionPool(conninfo=DB_URI, max_size=20, open=False)
     await db_pool.open()
     
-    # Initialize and setup the checkpointer
+    # Initialize and setup the checkpointer cleanly using a dedicated connection context
     checkpointer = AsyncPostgresSaver(db_pool)
-    await checkpointer.setup()
+    async with db_pool.connection() as conn:
+        await checkpointer.setup(conn=conn)
     
     # Build workflow and compile with the persistent PostgreSQL checkpointer
     raw_workflow = build_workflow()
