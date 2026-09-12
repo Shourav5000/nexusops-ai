@@ -21,6 +21,5 @@ jobs:
             cd nexusops-ai
             git pull origin main
             echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" > .env
-            docker build -t nexusops-ai .
-            docker rm -f nexusops-live
-            docker run -d -p 80:8000 --env-file .env --restart always --name nexusops-live nexusops-ai
+            docker compose down
+            docker compose up --build -d
