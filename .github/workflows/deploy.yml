@@ -1,0 +1,26 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
+          script: |
+            cd nexusops-ai
+            git pull origin main
+            echo "ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}" > .env
+            docker build -t nexusops-ai .
+            docker rm -f nexusops-live
+            docker run -d -p 80:8000 --env-file .env --restart always --name nexusops-live nexusops-ai
