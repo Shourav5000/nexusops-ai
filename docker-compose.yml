@@ -1,0 +1,29 @@
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: nexusops-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: securepassword123
+      POSTGRES_DB: nexusops
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  app:
+    build: .
+    container_name: nexusops-app
+    ports:
+      - "80:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=postgresql://postgres:securepassword123@db:5432/nexusops
+    depends_on:
+      - db
+    restart: always
+
+volumes:
+  postgres_data:
