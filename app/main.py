@@ -1,15 +1,45 @@
+import os
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-load_dotenv()  # Automatically loads ANTHROPIC_API_KEY from your .env file
+load_dotenv()
 
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, Union, List, Dict, Any
+
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from psycopg_pool import AsyncConnectionPool
 from app.agents.graph import build_workflow
 
-app = FastAPI(title="NexusOps AI API", version="1.0.0")
-workflow_app = build_workflow()
+DB_URI = os.getenv("DATABASE_URL", "postgresql://postgres:securepassword123@db:5432/nexusops")
+
+# Global workflow reference accessible across endpoints
+workflow_app = None
+db_pool = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global workflow_app, db_pool
+    # Initialize the asynchronous connection pool
+    db_pool = AsyncConnectionPool(conninfo=DB_URI, max_size=20, open=False)
+    await db_pool.open()
+    
+    # Initialize and setup the checkpointer
+    checkpointer = AsyncPostgresSaver(db_pool)
+    await checkpointer.setup()
+    
+    # Build workflow and compile with the persistent PostgreSQL checkpointer
+    raw_workflow = build_workflow()
+    workflow_app = raw_workflow.compile(checkpointer=checkpointer)
+    
+    yield
+    
+    # Cleanup connection pool on shutdown
+    await db_pool.close()
+
+app = FastAPI(title="NexusOps AI API", version="1.0.0", lifespan=lifespan)
 
 # Mount static folder so the frontend dashboard is accessible
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -21,18 +51,17 @@ def read_root():
 class ChatRequest(BaseModel):
     thread_id: str
     message: str
-    image_base64: Optional[str] = None  # Multimodal support for screenshots and error logs
+    image_base64: Optional[str] = None
 
 class ApprovalRequest(BaseModel):
     thread_id: str
     approved: bool
 
 @app.post("/chat")
-def run_chat_agent(req: ChatRequest):
+async def run_chat_agent(req: ChatRequest):
     config = {"configurable": {"thread_id": req.thread_id}}
-    existing = workflow_app.get_state(config)
+    existing = await workflow_app.aget_state(config)
 
-    # Same thread_id already waiting on HITL — do not append another copy of the message
     if existing.values and existing.next:
         return {
             "status": "suspended_for_approval",
@@ -41,7 +70,6 @@ def run_chat_agent(req: ChatRequest):
             "snapshot": existing.values
         }
 
-    # Handle multimodal input structure if an image was attached
     message_content: Union[str, List[Dict[Any, Any]]] = req.message
     if req.image_base64:
         message_content = [
@@ -55,8 +83,8 @@ def run_chat_agent(req: ChatRequest):
         "requires_approval": False
     }
 
-    result = workflow_app.invoke(initial_input, config)
-    state = workflow_app.get_state(config)
+    result = await workflow_app.ainvoke(initial_input, config)
+    state = await workflow_app.aget_state(config)
 
     if state.next:
         return {
@@ -73,18 +101,17 @@ def run_chat_agent(req: ChatRequest):
     }
 
 @app.post("/approve")
-def resume_with_approval(req: ApprovalRequest):
+async def resume_with_approval(req: ApprovalRequest):
     config = {"configurable": {"thread_id": req.thread_id}}
-    state = workflow_app.get_state(config)
+    state = await workflow_app.aget_state(config)
     
     if not state.next:
         raise HTTPException(status_code=400, detail="No active paused thread found for this ID.")
         
     approval_val = "approved" if req.approved else "rejected"
     
-    # Update state with human feedback and resume execution past the interrupt point
-    workflow_app.update_state(config, {"approval_status": approval_val})
-    resumed_result = workflow_app.invoke(None, config)
+    await workflow_app.aupdate_state(config, {"approval_status": approval_val})
+    resumed_result = await workflow_app.ainvoke(None, config)
     
     return {
         "status": "resumed_and_completed",
