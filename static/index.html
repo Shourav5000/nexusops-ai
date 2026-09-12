@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusOps AI - Autonomous Operations Console</title>
+    <style>
+        :root {
+            --bg-base: #f3f0f7;
+            --panel-bg: #ffffff;
+            --panel-border: #e2daf0;
+            --card-bg: #faf7fc;
+            --text-main: #2d2640;
+            --text-muted: #6b5f82;
+            --accent-lavender: #8b5cf6;
+            --accent-lavender-hover: #7c3aed;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --glow-lavender: rgba(139, 92, 246, 0.2);
+            --shadow-depth: 0 10px 35px -5px rgba(107, 95, 130, 0.12), 0 0 1px 1px rgba(226, 218, 240, 0.6);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; }
+        body { background-color: var(--bg-base); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; font-size: 1.05rem; }
+        
+        /* Sidebar - Expanded & Roomy */
+        aside { width: 360px; background-color: var(--panel-bg); border-right: 1px solid var(--panel-border); display: flex; flex-direction: column; padding: 28px; justify-content: space-between; box-shadow: 6px 0 30px rgba(107, 95, 130, 0.08); z-index: 10; }
+        .brand-container { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+        .brand-logo { width: 48px; height: 48px; background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35); }
+        .brand-logo svg { width: 26px; height: 26px; fill: #ffffff; }
+        .brand-title { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.3px; color: var(--text-main); }
+        .brand-subtitle { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700; }
+
+        .session-box { margin-bottom: 24px; background: var(--card-bg); padding: 18px; border-radius: 14px; border: 1px solid var(--panel-border); box-shadow: inset 0 2px 6px rgba(107, 95, 130, 0.04); }
+        label { font-size: 0.82rem; font-weight: 700; color: var(--text-muted); display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
+        input[type="text"] { width: 100%; padding: 14px 16px; background: #ffffff; border: 1px solid var(--panel-border); color: var(--text-main); border-radius: 10px; font-size: 0.98rem; font-family: monospace; outline: none; transition: all 0.2s; }
+        input[type="text"]:focus { border-color: var(--accent-lavender); box-shadow: 0 0 0 4px var(--glow-lavender); }
+
+        .tech-stack-info { background: var(--card-bg); border: 1px solid var(--panel-border); border-radius: 14px; padding: 18px; margin-top: auto; box-shadow: 0 4px 16px rgba(107, 95, 130, 0.04); }
+        .tech-stack-info h4 { font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); margin-bottom: 12px; letter-spacing: 0.8px; font-weight: 700; }
+        .tech-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+        .tag { background: #ede9fe; color: #6d28d9; font-size: 0.78rem; padding: 5px 12px; border-radius: 8px; border: 1px solid #ddd6fe; font-weight: 700; font-family: monospace; }
+        
+        /* Main Area */
+        main { flex: 1; display: flex; flex-direction: column; height: 100%; background: transparent; }
+        header { padding: 22px 36px; background-color: var(--panel-bg); border-bottom: 1px solid var(--panel-border); display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 20px rgba(107, 95, 130, 0.05); }
+        header h1 { font-size: 1.25rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 14px; }
+        .badge { background: #ecfdf5; color: #059669; padding: 7px 16px; border-radius: 24px; font-size: 0.82rem; border: 1px solid #a7f3d0; display: flex; align-items: center; gap: 8px; font-weight: 700; }
+        .badge-dot { width: 9px; height: 9px; background-color: #10b981; border-radius: 50%; box-shadow: 0 0 10px #10b981; animation: pulse 2s infinite; }
+        
+        /* Pipeline Tracker Bar - Larger & Clearer */
+        .agent-pipeline-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 18px 38px;
+            font-size: 0.9rem;
+            box-shadow: inset 0 -3px 10px rgba(107, 95, 130, 0.03);
+        }
+        .pipeline-step { display: flex; align-items: center; gap: 10px; color: var(--text-muted); font-weight: 700; transition: all 0.3s ease; }
+        .step-dot { width: 10px; height: 10px; border-radius: 50%; background: #d8b4fe; transition: all 0.3s ease; }
+        .pipeline-line { flex: 1; height: 3px; background: #e2daf0; margin: 0 16px; transition: background 0.3s ease; }
+        .pipeline-step.active { color: #7c3aed; font-weight: 800; }
+        .pipeline-step.active .step-dot { background: #8b5cf6; box-shadow: 0 0 14px var(--accent-lavender); animation: pulse 1.2s infinite; }
+        .pipeline-step.completed { color: #059669; font-weight: 800; }
+        .pipeline-step.completed .step-dot { background: #10b981; }
+        .pipeline-line.completed { background: #10b981; }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.7; }
+            50% { transform: scale(1.4); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.7; }
+        }
+
+        .chat-container { flex: 1; padding: 36px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; scroll-behavior: smooth; }
+        .message { max-width: 80%; padding: 18px 24px; border-radius: 16px; font-size: 1.02rem; line-height: 1.65; word-break: break-word; box-shadow: var(--shadow-depth); animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .message.user { background-color: #ede9fe; align-self: flex-end; border: 1px solid #ddd6fe; color: #4c1d95; font-weight: 600; }
+        .message.assistant { background-color: var(--panel-bg); align-self: flex-start; border: 1px solid var(--panel-border); color: var(--text-main); }
+        .message.assistant pre { background: #1e1b2e; padding: 16px; border-radius: 10px; border: 1px solid #2d2640; margin-top: 12px; font-family: monospace; overflow-x: auto; color: #c4b5fd; font-size: 0.95rem; }
+        .message img { max-width: 100%; border-radius: 10px; margin-top: 12px; border: 1px solid var(--panel-border); box-shadow: 0 8px 24px rgba(107, 95, 130, 0.15); }
+
+        .message.thinking { background-color: var(--panel-bg); border: 1.5px dashed var(--accent-lavender); color: var(--text-muted); align-self: flex-start; display: flex; align-items: center; gap: 16px; font-style: italic; font-weight: 600; box-shadow: var(--shadow-depth); }
+        .spinner { width: 20px; height: 20px; border: 3px solid #e2daf0; border-top-color: var(--accent-lavender); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .approval-card { background: #fef3c7; border: 1px solid #fcd34d; padding: 22px; border-radius: 14px; margin-top: 16px; box-shadow: var(--shadow-depth); animation: fadeIn 0.4s ease-out; }
+        .approval-card p { font-size: 1.02rem; margin-bottom: 16px; color: #92400e; font-weight: 700; }
+        .btn-group { display: flex; gap: 14px; }
+        button { padding: 12px 22px; border-radius: 10px; font-weight: 700; cursor: pointer; border: none; font-size: 0.95rem; transition: all 0.2s; box-shadow: 0 4px 12px rgba(107, 95, 130, 0.15); }
+        .btn-approve { background-color: var(--accent-green); color: white; box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3); }
+        .btn-approve:hover { background-color: #059669; transform: translateY(-1px); }
+        .btn-reject { background-color: var(--accent-red); color: white; box-shadow: 0 6px 16px rgba(239, 68, 68, 0.3); }
+        .btn-reject:hover { background-color: #dc2626; transform: translateY(-1px); }
+
+        /* Input Bar & Controls - Larger and Perfectly Balanced */
+        .input-bar { padding: 24px 36px; background-color: var(--panel-bg); border-top: 1px solid var(--panel-border); display: flex; gap: 16px; align-items: center; box-shadow: 0 -8px 30px rgba(107, 95, 130, 0.08); }
+        .input-bar input[type="text"] { flex: 1; padding: 16px 20px; font-size: 1.02rem; font-family: inherit; background: var(--card-bg); border: 1px solid var(--panel-border); border-radius: 12px; color: var(--text-main); transition: all 0.2s; }
+        .input-bar input[type="text"]:focus { background: #ffffff; border-color: var(--accent-lavender); box-shadow: 0 0 0 4px var(--glow-lavender); }
+        
+        /* Fully Proportioned and Scaled Action Buttons & Icons */
+        .icon-btn { background: var(--card-bg); border: 1px solid var(--panel-border); color: var(--text-muted); width: 56px; height: 56px; min-width: 56px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(107, 95, 130, 0.06); }
+        .icon-btn:hover { border-color: var(--accent-lavender); color: var(--accent-lavender); background: #ede9fe; transform: translateY(-1px); box-shadow: 0 6px 16px rgba(139, 92, 246, 0.15); }
+        .icon-btn.recording { border-color: var(--accent-red); color: var(--accent-red); background: #fee2e2; animation: pulse 1s infinite; }
+        .icon-btn svg { width: 28px; height: 28px; display: block; }
+        
+        .btn-send { background-color: var(--accent-lavender); color: white; padding: 0 32px; height: 56px; border-radius: 12px; font-weight: 700; cursor: pointer; border: none; font-size: 1.02rem; transition: all 0.2s; box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35); }
+        .btn-send:hover { background-color: var(--accent-lavender-hover); transform: translateY(-1px); box-shadow: 0 8px 25px rgba(139, 92, 246, 0.45); }
+        .btn-send:active { transform: translateY(0); }
+        
+        #imageInput { display: none; }
+        .image-preview-tag { font-size: 0.85rem; color: #6d28d9; background: #ede9fe; border: 1px solid #ddd6fe; padding: 6px 12px; border-radius: 8px; margin-left: 8px; display: none; font-weight: 700; white-space: nowrap; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div>
+            <div class="brand-container">
+                <div class="brand-logo">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                </div>
+                <div>
+                    <div class="brand-title">NexusOps AI</div>
+                    <div class="brand-subtitle">Autonomous Copilot</div>
+                </div>
+            </div>
+            
+            <div class="session-box">
+                <label for="threadId">Active Session Context</label>
+                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <select id="sessionSelect" onchange="switchSession(this.value)" style="flex: 1; padding: 10px; background: #ffffff; border: 1px solid var(--panel-border); color: var(--text-main); border-radius: 8px; font-size: 0.9rem; font-weight: 600; outline: none; cursor: pointer;">
+                        <option value="ops-session-01">ops-session-01</option>
+                        <option value="cluster-us-west">cluster-us-west</option>
+                        <option value="prod-incident-02">prod-incident-02</option>
+                    </select>
+                    <button onclick="createNewSession()" title="Create New Session" style="padding: 10px 14px; background: var(--accent-lavender); color: white; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; box-shadow: 0 2px 8px rgba(139,92,246,0.3);">+</button>
+                </div>
+                <input type="text" id="threadId" value="ops-session-01" onchange="syncSelectWithInput(this.value)">
+            </div>
+
+            <p style="font-size: 0.9rem; color: var(--text-muted); line-height: 1.6; margin-top: 18px; font-weight: 500;">
+                Autonomous multi-agent infrastructure orchestration engine equipped with runtime runbook retrieval, multimodal telemetry parsing, and safety approval gates.
+            </p>
+        </div>
+
+        <div class="tech-stack-info">
+            <h4>Architecture Engine</h4>
+            <div class="tech-tags">
+                <span class="tag">Claude Sonnet 5</span>
+                <span class="tag">Multimodal Vision</span>
+                <span class="tag">LangGraph</span>
+                <span class="tag">FAISS RAG</span>
+                <span class="tag">Web Speech API</span>
+            </div>
+        </div>
+    </aside>
+
+    <main>
+        <header>
+            <h1>Autonomous Operations Console <span style="font-weight: 500; color: var(--text-muted); font-size: 0.9rem;">/ cluster-us-east-1</span></h1>
+            <div class="badge"><div class="badge-dot"></div> System Online</div>
+        </header>
+
+        <div class="agent-pipeline-bar">
+            <div class="pipeline-step" id="step-router"><span class="step-dot"></span> 1. Intent Router</div>
+            <div class="pipeline-line" id="line-1"></div>
+            <div class="pipeline-step" id="step-rag"><span class="step-dot"></span> 2. FAISS RAG</div>
+            <div class="pipeline-line" id="line-2"></div>
+            <div class="pipeline-step" id="step-diagnostics"><span class="step-dot"></span> 3. Diagnostics AI</div>
+            <div class="pipeline-line" id="line-3"></div>
+            <div class="pipeline-step" id="step-hitl"><span class="step-dot"></span> 4. HITL Checkpoint</div>
+            <div class="pipeline-line" id="line-4"></div>
+            <div class="pipeline-step" id="step-apply"><span class="step-dot"></span> 5. Execution Bridge</div>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="message assistant">Hello! I am your NexusOps multi-agent copilot powered by Claude Sonnet 5. Upload an error graph image, dictate via microphone, or type an anomaly below.</div>
+        </div>
+
+        <div class="input-bar">
+            <input type="file" id="imageInput" accept="image/*" onchange="handleImageSelection(event)">
+            
+            <button class="icon-btn" title="Upload Error Log or Dashboard Image" onclick="document.getElementById('imageInput').click()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+
+            <button class="icon-btn" id="micBtn" title="Dictate Issue via Voice" onclick="toggleSpeechRecognition()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            </button>
+
+            <input type="text" id="messageInput" placeholder="Describe system anomaly or attach image..." onkeypress="handleKey(event)">
+            <span id="imagePreviewTag" class="image-preview-tag">Image Attached 📎</span>
+            <button class="btn-send" onclick="sendMessage()">Dispatch</button>
+        </div>
+    </main>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const messageInput = document.getElementById('messageInput');
+        const threadIdInput = document.getElementById('threadId');
+        const imageInput = document.getElementById('imageInput');
+        const imagePreviewTag = document.getElementById('imagePreviewTag');
+        const micBtn = document.getElementById('micBtn');
+
+        let attachedImageBase64 = null;
+
+        function switchSession(sessionId) {
+            document.getElementById('threadId').value = sessionId;
+            clearChatAndResetPipeline();
+        }
+
+        function syncSelectWithInput(val) {
+            const select = document.getElementById('sessionSelect');
+            let exists = Array.from(select.options).some(opt => opt.value === val);
+            if (!exists && val.trim() !== '') {
+                const newOpt = document.createElement('option');
+                newOpt.value = val;
+                newOpt.text = val;
+                select.add(newOpt);
+            }
+            select.value = val;
+            clearChatAndResetPipeline();
+        }
+
+        function createNewSession() {
+            const newId = `session-${Math.floor(Math.random() * 9000) + 1000}`;
+            const select = document.getElementById('sessionSelect');
+            const newOpt = document.createElement('option');
+            newOpt.value = newId;
+            newOpt.text = newId;
+            select.add(newOpt);
+            select.value = newId;
+            document.getElementById('threadId').value = newId;
+            clearChatAndResetPipeline();
+        }
+
+        function clearChatAndResetPipeline() {
+            chatContainer.innerHTML = `<div class="message assistant">Switched context to active session. Ready for next diagnostic workflow.</div>`;
+            resetPipeline();
+        }
+
+        function handleImageSelection(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(uploadEvent) {
+                attachedImageBase64 = uploadEvent.target.result;
+                imagePreviewTag.style.display = 'inline';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function toggleSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                alert("Speech recognition is not supported in this browser. Try Google Chrome.");
+                return;
+            }
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+
+            micBtn.classList.add('recording');
+            recognition.start();
+
+            recognition.onresult = function(event) {
+                const speechText = event.results[0][0].transcript;
+                messageInput.value = speechText;
+                micBtn.classList.remove('recording');
+            };
+
+            recognition.onerror = function() { micBtn.classList.remove('recording'); };
+            recognition.onend = function() { micBtn.classList.remove('recording'); };
+        }
+
+        function updatePipeline(activeStepName) {
+            const steps = ['router', 'rag', 'diagnostics', 'hitl', 'apply'];
+            const lines = ['line-1', 'line-2', 'line-3', 'line-4'];
+            let reachedActive = false;
+
+            steps.forEach((step) => {
+                const el = document.getElementById(`step-${step}`);
+                if (!el) return;
+                el.classList.remove('active', 'completed');
+                if (step === activeStepName) {
+                    el.classList.add('active');
+                    reachedActive = true;
+                } else if (!reachedActive) {
+                    el.classList.add('completed');
+                }
+            });
+
+            lines.forEach((lineId, index) => {
+                const lineEl = document.getElementById(lineId);
+                if (!lineEl) return;
+                if (index < steps.indexOf(activeStepName)) {
+                    lineEl.classList.add('completed');
+                } else {
+                    lineEl.classList.remove('completed');
+                }
+            });
+        }
+
+        function resetPipeline() {
+            ['router', 'rag', 'diagnostics', 'hitl', 'apply'].forEach(step => {
+                const el = document.getElementById(`step-${step}`);
+                if (el) el.classList.remove('active', 'completed');
+            });
+            ['line-1', 'line-2', 'line-3', 'line-4'].forEach(lineId => {
+                const el = document.getElementById(lineId);
+                if (el) el.classList.remove('completed');
+            });
+        }
+
+        function appendMessage(sender, text, htmlContent = null) {
+            const div = document.createElement('div');
+            div.className = `message ${sender}`;
+            div.innerHTML = text;
+            if (htmlContent) {
+                div.appendChild(htmlContent);
+            }
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return div;
+        }
+
+        function showThinkingState(text) {
+            removeThinkingState();
+            const div = document.createElement('div');
+            div.className = 'message thinking';
+            div.id = 'thinkingBubble';
+            div.innerHTML = `<div class="spinner"></div><span>${text}</span>`;
+            chatContainer.appendChild(div);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function removeThinkingState() {
+            const bubble = document.getElementById('thinkingBubble');
+            if (bubble) bubble.remove();
+        }
+
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            const thread_id = threadIdInput.value.trim();
+            if ((!text && !attachedImageBase64) || !thread_id) return;
+
+            let userHtml = text;
+            if (attachedImageBase64) {
+                userHtml += `<br><img src="${attachedImageBase64}" alt="Attached telemetry log">`;
+            }
+            appendMessage('user', userHtml);
+
+            const payloadMessage = text || "Please analyze this attached telemetry screenshot or error graph.";
+            const payloadImage = attachedImageBase64;
+
+            messageInput.value = '';
+            attachedImageBase64 = null;
+            imagePreviewTag.style.display = 'none';
+            imageInput.value = '';
+            resetPipeline();
+            
+            updatePipeline('router');
+            showThinkingState('Analyzing message intent & multimodal assets via Claude Sonnet 5...');
+
+            try {
+                await new Promise(r => setTimeout(r, 500));
+                updatePipeline('rag');
+                showThinkingState('Querying local FAISS vector runbook store...');
+
+                await new Promise(r => setTimeout(r, 500));
+                updatePipeline('diagnostics');
+                showThinkingState('Synthesizing visual telemetry and drafting remediation plan...');
+
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ thread_id, message: payloadMessage, image_base64: payloadImage })
+                });
+                const data = await response.json();
+
+                removeThinkingState();
+
+                if (data.status === 'suspended_for_approval') {
+                    updatePipeline('hitl');
+                    
+                    let rawReport = data.snapshot.diagnostics_report;
+                    let report = "Remediation plan ready for execution.";
+                    
+                    if (typeof rawReport === 'string') {
+                        report = rawReport;
+                    } else if (Array.isArray(rawReport)) {
+                        report = rawReport.map(item => typeof item === 'object' ? (item.text || JSON.stringify(item)) : item).join('\n');
+                    } else if (typeof rawReport === 'object' && rawReport !== null) {
+                        report = rawReport.text || JSON.stringify(rawReport, null, 2);
+                    }
+
+                    appendMessage('assistant', `⚠️ **Diagnostics Agent Paused (Human-in-the-Loop Checkpoint):**<br><br>${report}`);
+                    
+                    const card = document.createElement('div');
+                    card.className = 'approval-card';
+                    card.innerHTML = `
+                        <p>🔒 <strong>Governance Checkpoint:</strong> Do you want to authorize this engineering remediation plan?</p>
+                        <div class="btn-group">
+                            <button class="btn-approve" onclick="sendApproval('${thread_id}', true, this)">Approve & Execute</button>
+                            <button class="btn-reject" onclick="sendApproval('${thread_id}', false, this)">Reject</button>
+                        </div>
+                    `;
+                    chatContainer.appendChild(card);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                } else {
+                    updatePipeline('apply');
+                    const outputStr = JSON.stringify(data.result, null, 2);
+                    appendMessage('assistant', `Execution Result:<pre>${outputStr}</pre>`);
+                }
+            } catch (err) {
+                removeThinkingState();
+                resetPipeline();
+                appendMessage('assistant', '❌ Error communicating with backend service or API gateway timeout.');
+            }
+        }
+
+        async function sendApproval(thread_id, approved, btnElement) {
+            const card = btnElement.closest('.approval-card');
+            card.querySelectorAll('button').forEach(b => b.disabled = true);
+            updatePipeline('apply');
+            showThinkingState('Executing automated execution bridge & rolling container restart...');
+
+            try {
+                const response = await fetch('/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ thread_id, approved })
+                });
+                const data = await response.json();
+                
+                removeThinkingState();
+
+                if (approved) {
+                    appendMessage('assistant', `✅ **Action Approved & Executed Successfully.** Cluster state is now stable.`);
+                } else {
+                    appendMessage('assistant', `❌ **Action Rejected by Operator.** Workflow terminated safely with zero infrastructure changes.`);
+                }
+            } catch (err) {
+                removeThinkingState();
+                appendMessage('assistant', '❌ Error processing approval request.');
+            }
+        }
+
+        function handleKey(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+    </script>
+</body>
+</html>
