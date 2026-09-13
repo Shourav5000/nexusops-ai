@@ -112,21 +112,22 @@
         
         #imageInput { display: none; }
         .image-preview-tag { font-size: 0.85rem; color: #6d28d9; background: #ede9fe; border: 1px solid #ddd6fe; padding: 6px 12px; border-radius: 8px; margin-left: 8px; display: none; font-weight: 700; white-space: nowrap; }
-    /* Mobile Responsiveness Media Query */
+        /* Mobile Responsiveness Media Query */
     @media (max-width: 768px) {
-            body { flex-direction: column; height: 100vh; overflow-y: auto; }
-            aside { width: 100%; max-height: 35vh; padding: 16px; border-right: none; border-bottom: 1px solid var(--panel-border); }
-            main { height: 65vh; }
-            header { padding: 16px 20px; flex-direction: column; align-items: flex-start; gap: 10px; }
-            header h1 { font-size: 1.1rem; }
-            .agent-pipeline-bar { padding: 12px 20px; font-size: 0.8rem; }
-            .chat-container { padding: 20px; gap: 16px; }
-            .message { max-width: 90%; padding: 14px 18px; font-size: 0.95rem; }
-            .input-bar { padding: 16px 20px; gap: 10px; }
-            .input-bar input[type="text"] { padding: 12px 14px; font-size: 0.95rem; }
-            .icon-btn { width: 48px; height: 48px; min-width: 48px; }
-            .btn-send { height: 48px; padding: 0 20px; font-size: 0.95rem; }
-        }
+        body { flex-direction: column; height: auto; min-height: 100vh; overflow-y: auto; }
+        aside { width: 100%; height: auto; max-height: none; padding: 20px; border-right: none; border-bottom: 1px solid var(--panel-border); }
+        main { height: auto; min-height: 70vh; overflow: visible; }
+        header { padding: 16px 20px; flex-direction: column; align-items: flex-start; gap: 10px; }
+        header h1 { font-size: 1.1rem; flex-direction: column; align-items: flex-start; gap: 4px; }
+        .agent-pipeline-bar { padding: 12px 20px; font-size: 0.8rem; overflow-x: auto; }
+        .chat-container { padding: 20px; gap: 16px; height: 500px; overflow-y: auto; }
+        .message { max-width: 90%; padding: 14px 18px; font-size: 0.95rem; }
+        .input-bar { padding: 16px 20px; gap: 10px; position: sticky; bottom: 0; background-color: var(--panel-bg); z-index: 20; }
+        .input-bar input[type="text"] { padding: 12px 14px; font-size: 0.95rem; }
+        .icon-btn { width: 48px; height: 48px; min-width: 48px; }
+        .btn-send { height: 48px; padding: 0 20px; font-size: 0.95rem; }
+    }
+        
     </style>
 </head>
 <body>
