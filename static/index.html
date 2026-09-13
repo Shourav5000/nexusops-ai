@@ -115,38 +115,39 @@
         #imageInput { display: none; }
         .image-preview-tag { font-size: 0.8rem; color: #6d28d9; background: #ede9fe; border: 1px solid #ddd6fe; padding: 4px 10px; border-radius: 6px; display: none; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
 
-        /* Mobile Collapsible Header Toggle */
+        /* Mobile View Navigation Toggle Button */
         .mobile-menu-toggle { display: none; background: var(--card-bg); border: 1px solid var(--panel-border); color: var(--text-main); padding: 8px 12px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; align-items: center; gap: 6px; }
 
         /* Mobile Responsiveness Media Query */
         @media (max-width: 768px) {
-            body { flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+            body { flex-direction: column; height: 100vh; height: 100dvh; overflow-y: auto; }
             
-            /* Make sidebar collapsible / toggleable on mobile */
+            /* Sidebar displays fully first as the initial mobile screen */
             aside { 
-                position: absolute; 
-                top: 0; 
-                left: 0; 
                 width: 100%; 
-                height: auto; 
-                max-height: 75vh; 
-                transition: transform 0.3s ease-in-out; 
-                box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-                border-bottom: 2px solid var(--accent-lavender);
-                transform: translateY(-100%);
-                display: none;
-            }
-            aside.mobile-open {
+                height: 100vh; 
+                height: 100dvh;
+                max-height: none; 
+                border-right: none; 
                 display: flex;
-                transform: translateY(0);
             }
+
+            /* Main chat view starts hidden below/toggled until user selects/scrolls */
+            main { 
+                display: none; 
+                height: 100vh; 
+                height: 100dvh; 
+                width: 100%; 
+            }
+
+            body.view-chat aside { display: none; }
+            body.view-chat main { display: flex; }
 
             .mobile-menu-toggle { display: inline-flex; }
 
-            main { height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden; }
             header { padding: 14px 18px; flex-direction: row; align-items: center; justify-content: space-between; }
             header h1 { font-size: 0.95rem; gap: 8px; }
-            header h1 span { display: none; } /* Hide cluster name on tiny screens to prevent wrap overflow */
+            header h1 span { display: none; }
             
             .agent-pipeline-bar { padding: 10px 16px; font-size: 0.75rem; }
             .chat-container { padding: 16px; gap: 14px; flex: 1; overflow-y: auto; }
@@ -174,7 +175,7 @@
                         <div class="brand-subtitle">Autonomous Copilot</div>
                     </div>
                 </div>
-                <button onclick="toggleMobileSidebar()" style="background: none; border: none; font-size: 1.2rem; font-weight: 700; color: var(--text-muted); cursor: pointer; padding: 6px 10px;">✕</button>
+                <button onclick="toggleView()" style="background: var(--accent-lavender); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer;">Open Console ➔</button>
             </div>
             
             <div class="session-box">
@@ -212,7 +213,7 @@
     <main>
         <header>
             <div style="display: flex; align-items: center; gap: 12px;">
-                <button class="mobile-menu-toggle" onclick="toggleMobileSidebar()" id="menuToggleBtn">⚙️ Sessions</button>
+                <button class="mobile-menu-toggle" onclick="toggleView()" id="menuToggleBtn">⚙️ Sessions</button>
                 <h1>Operations Console <span style="font-weight: 500; color: var(--text-muted); font-size: 0.85rem;">/ cluster-us-east-1</span></h1>
             </div>
             <div class="badge"><div class="badge-dot"></div> System Online</div>
@@ -259,23 +260,12 @@
         const imageInput = document.getElementById('imageInput');
         const imagePreviewTag = document.getElementById('imagePreviewTag');
         const micBtn = document.getElementById('micBtn');
-        const sidebarPanel = document.getElementById('sidebarPanel');
 
         let attachedImageBase64 = null;
 
-        function toggleMobileSidebar() {
-            sidebarPanel.classList.toggle('mobile-open');
+        function toggleView() {
+            document.body.classList.toggle('view-chat');
         }
-
-        // Close sidebar when clicking outside on mobile
-        document.addEventListener('click', (event) => {
-            if (window.innerWidth <= 768 && sidebarPanel.classList.contains('mobile-open')) {
-                const isClickInside = sidebarPanel.contains(event.target) || event.target.closest('#menuToggleBtn');
-                if (!isClickInside) {
-                    sidebarPanel.classList.remove('mobile-open');
-                }
-            }
-        });
 
         window.addEventListener('DOMContentLoaded', async () => {
             await fetchSessions();
@@ -317,7 +307,9 @@
         async function switchSession(sessionId) {
             threadIdInput.value = sessionId;
             await loadSessionHistory(sessionId);
-            if (window.innerWidth <= 768) sidebarPanel.classList.remove('mobile-open');
+            if (window.innerWidth <= 768) {
+                document.body.classList.add('view-chat');
+            }
         }
 
         async function syncSelectWithInput(val) {
@@ -351,7 +343,9 @@
             chatContainer.innerHTML = '';
             resetPipeline();
             appendMessage('assistant', 'Hello! I am your NexusOps multi-agent copilot powered by Claude Sonnet 5. Upload an error graph image, dictate via microphone, or type an anomaly below.');
-            if (window.innerWidth <= 768) sidebarPanel.classList.remove('mobile-open');
+            if (window.innerWidth <= 768) {
+                document.body.classList.add('view-chat');
+            }
         }
 
         async function renameCurrentSession() {
