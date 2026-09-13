@@ -164,14 +164,17 @@
 
     <aside id="sidebarPanel">
         <div>
-            <div class="brand-container">
-                <div class="brand-logo">
-                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+                <div class="brand-container" style="margin-bottom: 0;">
+                    <div class="brand-logo">
+                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    </div>
+                    <div>
+                        <div class="brand-title">NexusOps AI</div>
+                        <div class="brand-subtitle">Autonomous Copilot</div>
+                    </div>
                 </div>
-                <div>
-                    <div class="brand-title">NexusOps AI</div>
-                    <div class="brand-subtitle">Autonomous Copilot</div>
-                </div>
+                <button onclick="toggleMobileSidebar()" style="background: none; border: none; font-size: 1.2rem; font-weight: 700; color: var(--text-muted); cursor: pointer; padding: 6px 10px;">✕</button>
             </div>
             
             <div class="session-box">
@@ -263,6 +266,16 @@
         function toggleMobileSidebar() {
             sidebarPanel.classList.toggle('mobile-open');
         }
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (event) => {
+            if (window.innerWidth <= 768 && sidebarPanel.classList.contains('mobile-open')) {
+                const isClickInside = sidebarPanel.contains(event.target) || event.target.closest('#menuToggleBtn');
+                if (!isClickInside) {
+                    sidebarPanel.classList.remove('mobile-open');
+                }
+            }
+        });
 
         window.addEventListener('DOMContentLoaded', async () => {
             await fetchSessions();
