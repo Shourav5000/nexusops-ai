@@ -44,9 +44,9 @@ app = FastAPI(title="NexusOps AI API", version="1.0.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
+@app.head("/")
 def read_root():
     return FileResponse("static/index.html")
-
 @app.get("/sessions")
 async def list_sessions():
     sessions = ["ops-session-01"]
