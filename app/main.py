@@ -10,20 +10,26 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, Union, List, Dict, Any
 
+from psycopg_pool import AsyncConnectionPool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from app.agents.graph import build_workflow
 
-DB_URI = os.getenv("DATABASE_URL", "postgresql://postgres:securepassword123@db:5432/nexusops")
+DB_URI = os.getenv("DATABASE_URL")
 
+db_pool = None
 workflow_app = None
-checkpointer_instance = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global workflow_app, checkpointer_instance
-    async with AsyncPostgresSaver.from_conn_string(DB_URI) as checkpointer:
+    global db_pool, workflow_app
+    # Create a resilient connection pool that handles reconnections automatically
+    async with AsyncConnectionPool(conninfo=DB_URI, open=False) as pool:
+        await pool.open()
+        db_pool = pool
+        
+        # Initialize checkpointer and run setup using the pool
+        checkpointer = AsyncPostgresSaver(pool)
         await checkpointer.setup()
-        checkpointer_instance = checkpointer
         
         raw_workflow = build_workflow()
         workflow_app = raw_workflow.compile(
@@ -45,8 +51,10 @@ def read_root():
 async def list_sessions():
     sessions = ["ops-session-01"]
     try:
-        if checkpointer_instance:
-            checkpoint_tuples = [cp async for cp in checkpointer_instance.alist(None)]
+        # Use a pooled connection connection context safely
+        async with db_pool.connection() as conn:
+            checkpointer = AsyncPostgresSaver(conn)
+            checkpoint_tuples = [cp async for cp in checkpointer.alist(None)]
             found_threads = list(set([
                 cp.config["configurable"]["thread_id"] 
                 for cp in checkpoint_tuples 
@@ -86,30 +94,15 @@ async def get_session_history(thread_id: str):
 @app.delete("/sessions/{thread_id}")
 async def delete_session(thread_id: str):
     try:
-        # Native method if available in checkpointer version
-        if hasattr(checkpointer_instance, "adelete_thread"):
-            await checkpointer_instance.adelete_thread(thread_id)
-        
-        # Explicit connection cleanup to clear transaction state cache
-        async with checkpointer_instance.conn.connection() as conn:
+        async with db_pool.connection() as conn:
             async with conn.cursor() as cur:
                 await cur.execute("DELETE FROM checkpoint_writes WHERE thread_id = %s;", (thread_id,))
                 await cur.execute("DELETE FROM checkpoints WHERE thread_id = %s;", (thread_id,))
                 await cur.execute("DELETE FROM checkpoint_blobs WHERE thread_id = %s;", (thread_id,))
             await conn.commit()
-            
         return {"status": "success", "deleted": thread_id}
     except Exception as e:
-        try:
-            async with checkpointer_instance.conn as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute("DELETE FROM checkpoint_writes WHERE thread_id = %s;", (thread_id,))
-                    await cur.execute("DELETE FROM checkpoints WHERE thread_id = %s;", (thread_id,))
-                    await cur.execute("DELETE FROM checkpoint_blobs WHERE thread_id = %s;", (thread_id,))
-                await conn.commit()
-            return {"status": "success", "deleted": thread_id}
-        except Exception as inner_e:
-            raise HTTPException(status_code=500, detail=str(inner_e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 class RenameRequest(BaseModel):
     new_thread_id: str
@@ -120,20 +113,12 @@ async def rename_session(thread_id: str, req: RenameRequest):
     if not new_id:
         raise HTTPException(status_code=400, detail="New session name cannot be empty.")
     try:
-        try:
-            async with checkpointer_instance.conn.connection() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute("UPDATE checkpoint_writes SET thread_id = %s WHERE thread_id = %s;", (new_id, thread_id))
-                    await cur.execute("UPDATE checkpoints SET thread_id = %s WHERE thread_id = %s;", (new_id, thread_id))
-                    await cur.execute("UPDATE checkpoint_blobs SET thread_id = %s WHERE thread_id = %s;", (new_id, thread_id))
-                await conn.commit()
-        except Exception:
-            async with checkpointer_instance.conn as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute("UPDATE checkpoint_writes SET thread_id = %s WHERE thread_id = %s;", (new_id, thread_id))
-                    await cur.execute("UPDATE checkpoints SET thread_id = %s WHERE thread_id = %s;", (new_id, thread_id))
-                    await cur.execute("UPDATE checkpoint_blobs SET thread_id = %s WHERE thread_id = %s;", (new_id, thread_id))
-                await conn.commit()
+        async with db_pool.connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("UPDATE checkpoint_writes SET thread_id = %s WHERE thread_id = %s;", (new_id, thread_id))
+                await cur.execute("UPDATE checkpoints SET thread_id = %s WHERE thread_id = %s;", (new_id, thread_id))
+                await cur.execute("UPDATE checkpoint_blobs SET thread_id = %s WHERE thread_id = %s;", (new_id, thread_id))
+            await conn.commit()
         return {"status": "success", "old_id": thread_id, "new_id": new_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
